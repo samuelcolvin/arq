@@ -266,7 +266,7 @@ async def create_pool(
         except (ConnectionError, OSError, RedisError, asyncio.TimeoutError) as e:
             if retry < settings.conn_retries:
                 logger.warning(
-                    'redis connection error %s:%s %s %s, %d retries remaining...',
+                    'redis connection error %s:%s %s %s, %s retries remaining...',
                     settings.host,
                     settings.port,
                     e.__class__.__name__,
