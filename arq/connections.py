@@ -43,6 +43,7 @@ class RedisSettings:
     conn_timeout: int = 1
     conn_retries: int = 5
     conn_retry_delay: int = 1
+    max_connections: Optional[int] = None
 
     sentinel: bool = False
     sentinel_master: str = 'mymaster'
@@ -250,6 +251,7 @@ async def create_pool(
             ssl_ca_certs=settings.ssl_ca_certs,
             ssl_ca_data=settings.ssl_ca_data,
             ssl_check_hostname=settings.ssl_check_hostname,
+            max_connections=settings.max_connections,
         )
 
     while True:
