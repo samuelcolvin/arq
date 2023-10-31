@@ -16,6 +16,9 @@ from .constants import default_queue_name, expires_extra_ms, job_key_prefix, res
 from .jobs import Deserializer, Job, JobDef, JobResult, Serializer, deserialize_job, serialize_job
 from .utils import timestamp_ms, to_ms, to_unix_ms
 
+if TYPE_CHECKING:
+    from redis.asyncio.client import Pipeline
+
 logger = logging.getLogger('arq.connections')
 
 
@@ -143,6 +146,7 @@ class ArqRedis(BaseRedis):
         defer_by_ms = to_ms(_defer_by)
         expires_ms = to_ms(_expires)
 
+        pipe: 'Pipeline[bytes]'
         async with self.pipeline(transaction=True) as pipe:
             await pipe.watch(job_key)
             if await pipe.exists(job_key, result_key_prefix + job_id):
@@ -161,8 +165,8 @@ class ArqRedis(BaseRedis):
 
             job = serialize_job(function, args, kwargs, _job_try, enqueue_time_ms, serializer=self.job_serializer)
             pipe.multi()
-            pipe.psetex(job_key, expires_ms, job)  # type: ignore[no-untyped-call]
-            pipe.zadd(_queue_name, {job_id: score})  # type: ignore[unused-coroutine]
+            pipe.psetex(job_key, expires_ms, job)
+            pipe.zadd(_queue_name, {job_id: score})
             try:
                 await pipe.execute()
             except WatchError:
@@ -284,11 +288,12 @@ async def create_pool(
 
 
 async def log_redis_info(redis: 'Redis[bytes]', log_func: Callable[[str], Any]) -> None:
+    pipe: 'Pipeline[bytes]'
     async with redis.pipeline(transaction=False) as pipe:
-        pipe.info(section='Server')  # type: ignore[unused-coroutine]
-        pipe.info(section='Memory')  # type: ignore[unused-coroutine]
-        pipe.info(section='Clients')  # type: ignore[unused-coroutine]
-        pipe.dbsize()  # type: ignore[unused-coroutine]
+        pipe.info(section='Server')
+        pipe.info(section='Memory')
+        pipe.info(section='Clients')
+        pipe.dbsize()
         info_server, info_memory, info_clients, key_count = await pipe.execute()
 
     redis_version = info_server.get('redis_version', '?')
