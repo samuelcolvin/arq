@@ -2,6 +2,8 @@ import asyncio
 
 from arq import create_pool
 from arq.connections import RedisSettings
+from arq.jobs import Job
+
 
 async def the_task(ctx):
     print('running the task with id', ctx['job_id'])
@@ -35,6 +37,14 @@ async def main():
     print(job4)
     """
     >  None
+    """
+
+    # you can retrieve jobs by using arq.jobs.Job
+    await redis.enqueue_job('the_task', _job_id='my_job')
+    job5 = Job(job_id='my_job', redis=redis)
+    print(job5)
+    """
+    <arq job my_job>
     """
 
 class WorkerSettings:
