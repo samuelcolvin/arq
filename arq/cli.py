@@ -60,7 +60,7 @@ async def watch_reload(path: str, worker_settings: 'WorkerSettingsType') -> None
     except ImportError as e:  # pragma: no cover
         raise ImportError('watchfiles not installed, use `pip install watchfiles`') from e
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
     def worker_on_stop(s: Signals) -> None:
