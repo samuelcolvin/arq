@@ -193,6 +193,7 @@ class ArqRedis(BaseRedis):
         assert v is not None, f'job "{key}" not found'
         jd = deserialize_job(v, deserializer=self.job_deserializer)
         jd.score = score
+        jd.job_id = job_id.decode()
         return jd
 
     async def queued_jobs(self, *, queue_name: Optional[str] = None) -> List[JobDef]:

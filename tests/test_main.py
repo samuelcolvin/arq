@@ -238,11 +238,11 @@ async def test_cant_pickle_result(arq_redis: ArqRedis, worker):
 
 
 async def test_get_jobs(arq_redis: ArqRedis):
-    await arq_redis.enqueue_job('foobar', a=1, b=2, c=3)
+    await arq_redis.enqueue_job('foobar', a=1, b=2, c=3, _job_id='1')
     await asyncio.sleep(0.01)
-    await arq_redis.enqueue_job('second', 4, b=5, c=6)
+    await arq_redis.enqueue_job('second', 4, b=5, c=6, _job_id='2')
     await asyncio.sleep(0.01)
-    await arq_redis.enqueue_job('third', 7, b=8)
+    await arq_redis.enqueue_job('third', 7, b=8, _job_id='3')
     jobs = await arq_redis.queued_jobs()
     assert [dataclasses.asdict(j) for j in jobs] == [
         {
@@ -252,6 +252,7 @@ async def test_get_jobs(arq_redis: ArqRedis):
             'job_try': None,
             'enqueue_time': IsNow(tz='utc'),
             'score': IsInt(),
+            'job_id': '1',
         },
         {
             'function': 'second',
@@ -260,6 +261,7 @@ async def test_get_jobs(arq_redis: ArqRedis):
             'job_try': None,
             'enqueue_time': IsNow(tz='utc'),
             'score': IsInt(),
+            'job_id': '2',
         },
         {
             'function': 'third',
@@ -268,6 +270,7 @@ async def test_get_jobs(arq_redis: ArqRedis):
             'job_try': None,
             'enqueue_time': IsNow(tz='utc'),
             'score': IsInt(),
+            'job_id': '3',
         },
     ]
     assert jobs[0].score < jobs[1].score < jobs[2].score

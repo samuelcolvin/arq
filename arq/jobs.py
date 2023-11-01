@@ -47,6 +47,7 @@ class JobDef:
     job_try: int
     enqueue_time: datetime
     score: Optional[int]
+    job_id: Optional[str]
 
     def __post_init__(self) -> None:
         if isinstance(self.score, float):
@@ -60,7 +61,6 @@ class JobResult(JobDef):
     start_time: datetime
     finish_time: datetime
     queue_name: str
-    job_id: Optional[str] = None
 
 
 class Job:
@@ -238,6 +238,7 @@ def serialize_result(
     finished_ms: int,
     ref: str,
     queue_name: str,
+    job_id: str,
     *,
     serializer: Optional[Serializer] = None,
 ) -> Optional[bytes]:
@@ -252,6 +253,7 @@ def serialize_result(
         'st': start_ms,
         'ft': finished_ms,
         'q': queue_name,
+        'id': job_id,
     }
     if serializer is None:
         serializer = pickle.dumps
@@ -281,6 +283,7 @@ def deserialize_job(r: bytes, *, deserializer: Optional[Deserializer] = None) ->
             job_try=d['t'],
             enqueue_time=ms_to_datetime(d['et']),
             score=None,
+            job_id=None,
         )
     except Exception as e:
         raise DeserializationError('unable to deserialize job') from e
@@ -315,6 +318,7 @@ def deserialize_result(r: bytes, *, deserializer: Optional[Deserializer] = None)
             start_time=ms_to_datetime(d['st']),
             finish_time=ms_to_datetime(d['ft']),
             queue_name=d.get('q', '<unknown>'),
+            job_id=d.get('id', '<unknown>'),
         )
     except Exception as e:
         raise DeserializationError('unable to deserialize job result') from e
