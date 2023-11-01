@@ -83,7 +83,7 @@ class Job:
         self._deserializer = _deserializer
 
     async def result(
-        self, timeout: Optional[float] = None, *, poll_delay: float = 0.5, pole_delay: float = None
+        self, timeout: Optional[float] = None, *, poll_delay: float = 0.5, pole_delay: Optional[float] = None
     ) -> Any:
         """
         Get the result of the job or, if the job raised an exception, reraise it.

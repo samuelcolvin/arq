@@ -206,7 +206,7 @@ class ArqRedis(BaseRedis):
 
 
 async def create_pool(
-    settings_: RedisSettings = None,
+    settings_: Optional[RedisSettings] = None,
     *,
     retry: int = 0,
     job_serializer: Optional[Serializer] = None,
