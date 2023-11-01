@@ -85,7 +85,8 @@ def func(
     else:
         coroutine_ = coroutine
 
-    assert asyncio.iscoroutinefunction(coroutine_), f'{coroutine_} is not a coroutine function'
+    if not asyncio.iscoroutinefunction(coroutine_):
+        raise RuntimeError(f'{coroutine_} is not a coroutine function')
     timeout = to_seconds(timeout)
     keep_result = to_seconds(keep_result)
 
@@ -226,10 +227,12 @@ class Worker:
         self.queue_name = queue_name
         self.cron_jobs: List[CronJob] = []
         if cron_jobs is not None:
-            assert all(isinstance(cj, CronJob) for cj in cron_jobs), 'cron_jobs, must be instances of CronJob'
+            if not all(isinstance(cj, CronJob) for cj in cron_jobs):
+                raise RuntimeError('cron_jobs, must be instances of CronJob')
             self.cron_jobs = list(cron_jobs)
             self.functions.update({cj.name: cj for cj in self.cron_jobs})
-        assert len(self.functions) > 0, 'at least one function or cron_job must be registered'
+        if len(self.functions) == 0:
+            raise RuntimeError('at least one function or cron_job must be registered')
         self.burst = burst
         self.on_startup = on_startup
         self.on_shutdown = on_shutdown

@@ -58,9 +58,10 @@ def _get_next_dt(dt_: datetime, options: Options) -> Optional[datetime]:  # noqa
             next_v = getattr(dt_, field)
         if isinstance(v, int):
             mismatch = next_v != v
-        else:
-            assert isinstance(v, (set, list, tuple)), v
+        elif isinstance(v, (set, list, tuple)):
             mismatch = next_v not in v
+        else:
+            raise RuntimeError(v)
         # print(field, v, next_v, mismatch)
         if mismatch:
             micro = max(dt_.microsecond - options.microsecond, 0)
@@ -82,7 +83,8 @@ def _get_next_dt(dt_: datetime, options: Options) -> Optional[datetime]:  # noqa
             elif field == 'second':
                 return dt_ + timedelta(seconds=1) - timedelta(microseconds=micro)
             else:
-                assert field == 'microsecond', field
+                if field != 'microsecond':
+                    raise RuntimeError(field)
                 return dt_ + timedelta(microseconds=options.microsecond - dt_.microsecond)
     return None
 
@@ -173,7 +175,8 @@ def cron(
     else:
         coroutine_ = coroutine
 
-    assert asyncio.iscoroutinefunction(coroutine_), f'{coroutine_} is not a coroutine function'
+    if not asyncio.iscoroutinefunction(coroutine_):
+        raise RuntimeError(f'{coroutine_} is not a coroutine function')
     timeout = to_seconds(timeout)
     keep_result = to_seconds(keep_result)
 

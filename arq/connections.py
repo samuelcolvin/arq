@@ -50,7 +50,8 @@ class RedisSettings:
     @classmethod
     def from_dsn(cls, dsn: str) -> 'RedisSettings':
         conf = urlparse(dsn)
-        assert conf.scheme in {'redis', 'rediss', 'unix'}, 'invalid DSN scheme'
+        if conf.scheme not in {'redis', 'rediss', 'unix'}:
+            raise RuntimeError('invalid DSN scheme')
         query_db = parse_qs(conf.query).get('db')
         if query_db:
             # e.g. redis://localhost:6379?db=1
@@ -138,7 +139,8 @@ class ArqRedis(BaseRedis):
             _queue_name = self.default_queue_name
         job_id = _job_id or uuid4().hex
         job_key = job_key_prefix + job_id
-        assert not (_defer_until and _defer_by), "use either 'defer_until' or 'defer_by' or neither, not both"
+        if _defer_until and _defer_by:
+            raise RuntimeError("use either 'defer_until' or 'defer_by' or neither, not both")
 
         defer_by_ms = to_ms(_defer_by)
         expires_ms = to_ms(_expires)
@@ -190,7 +192,8 @@ class ArqRedis(BaseRedis):
     async def _get_job_def(self, job_id: bytes, score: int) -> JobDef:
         key = job_key_prefix + job_id.decode()
         v = await self.get(key)
-        assert v is not None, f'job "{key}" not found'
+        if v is None:
+            raise RuntimeError(f'job "{key}" not found')
         jd = deserialize_job(v, deserializer=self.job_deserializer)
         jd.score = score
         return jd
@@ -221,9 +224,8 @@ async def create_pool(
     """
     settings: RedisSettings = RedisSettings() if settings_ is None else settings_
 
-    assert not (
-        type(settings.host) is str and settings.sentinel
-    ), "str provided for 'host' but 'sentinel' is true; list of sentinels expected"
+    if isinstance(settings.host, str) and settings.sentinel:
+        raise RuntimeError("str provided for 'host' but 'sentinel' is true; list of sentinels expected")
 
     if settings.sentinel:
 
