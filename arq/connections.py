@@ -55,8 +55,10 @@ class RedisSettings:
         if query_db:
             # e.g. redis://localhost:6379?db=1
             database = int(query_db[0])
-        else:
+        elif conf.scheme != 'unix':
             database = int(conf.path.lstrip('/')) if conf.path else 0
+        else:
+            database = 0
         return RedisSettings(
             host=conf.hostname or 'localhost',
             port=conf.port or 6379,
