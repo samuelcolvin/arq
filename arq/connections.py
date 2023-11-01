@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from redis.asyncio import ConnectionPool, Redis
+from redis.asyncio.retry import Retry
 from redis.asyncio.sentinel import Sentinel
 from redis.exceptions import RedisError, WatchError
 
@@ -46,6 +47,10 @@ class RedisSettings:
 
     sentinel: bool = False
     sentinel_master: str = 'mymaster'
+
+    retry_on_timeout: bool = False
+    retry_on_error: Optional[List[Exception]] = None
+    retry: Optional[Retry] = None
 
     @classmethod
     def from_dsn(cls, dsn: str) -> 'RedisSettings':
@@ -250,6 +255,9 @@ async def create_pool(
             ssl_ca_certs=settings.ssl_ca_certs,
             ssl_ca_data=settings.ssl_ca_data,
             ssl_check_hostname=settings.ssl_check_hostname,
+            retry=settings.retry,
+            retry_on_timeout=settings.retry_on_timeout,
+            retry_on_error=settings.retry_on_error,
         )
 
     while True:

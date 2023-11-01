@@ -21,7 +21,7 @@ def test_settings_changed():
         "RedisSettings(host='localhost', port=123, unix_socket_path=None, database=0, username=None, password=None, "
         "ssl=False, ssl_keyfile=None, ssl_certfile=None, ssl_cert_reqs='required', ssl_ca_certs=None, "
         'ssl_ca_data=None, ssl_check_hostname=False, conn_timeout=1, conn_retries=5, conn_retry_delay=1, '
-        "sentinel=False, sentinel_master='mymaster')"
+        "sentinel=False, sentinel_master='mymaster', retry_on_timeout=False, retry_on_error=None, retry=None)"
     ) == str(settings)
 
 
@@ -111,6 +111,9 @@ def test_typing():
 def test_redis_settings_validation():
     class Settings(BaseModel):
         redis_settings: RedisSettings
+
+        class Config:
+            arbitrary_types_allowed = True
 
         @validator('redis_settings', always=True, pre=True)
         def parse_redis_settings(cls, v):

@@ -5,6 +5,9 @@ import sys
 
 import msgpack
 import pytest
+import redis.exceptions
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 from redislite import Redis
 
 from arq.connections import ArqRedis, create_pool
@@ -53,6 +56,21 @@ async def arq_redis_msgpack(loop):
 
 
 @pytest.fixture
+async def arq_redis_retry(loop):
+    redis_ = ArqRedis(
+        host='localhost',
+        port=6379,
+        encoding='utf-8',
+        retry=Retry(backoff=NoBackoff(), retries=3),
+        retry_on_timeout=True,
+        retry_on_error=[redis.exceptions.ConnectionError],
+    )
+    await redis_.flushall()
+    yield redis_
+    await redis_.close(close_connection_pool=True)
+
+
+@pytest.fixture
 async def worker(arq_redis):
     worker_: Worker = None
 
@@ -67,6 +85,28 @@ async def worker(arq_redis):
 
     if worker_:
         await worker_.close()
+
+
+@pytest.fixture
+async def worker_retry(arq_redis_retry):
+    worker_retry_: Worker = None
+
+    def create(functions=[], burst=True, poll_delay=0, max_jobs=10, arq_redis=arq_redis_retry, **kwargs):
+        nonlocal worker_retry_
+        worker_retry_ = Worker(
+            functions=functions,
+            redis_pool=arq_redis,
+            burst=burst,
+            poll_delay=poll_delay,
+            max_jobs=max_jobs,
+            **kwargs,
+        )
+        return worker_retry_
+
+    yield create
+
+    if worker_retry_:
+        await worker_retry_.close()
 
 
 @pytest.fixture(name='create_pool')

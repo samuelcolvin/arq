@@ -5,10 +5,11 @@ import re
 import signal
 import sys
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import msgpack
 import pytest
+import redis.exceptions
 
 from arq.connections import ArqRedis, RedisSettings
 from arq.constants import abort_jobs_ss, default_queue_name, expires_extra_ms, health_check_key_suffix, job_key_prefix
@@ -1018,3 +1019,79 @@ async def test_worker_timezone_defaults_to_system_timezone(worker):
     worker = worker(functions=[func(foobar)])
     assert worker.timezone is not None
     assert worker.timezone == datetime.now().astimezone().tzinfo
+
+
+@pytest.mark.parametrize(
+    'exception_thrown',
+    [
+        redis.exceptions.ConnectionError('Error while reading from host'),
+        redis.exceptions.TimeoutError('Timeout reading from host'),
+    ],
+)
+async def test_worker_retry(mocker, worker_retry, exception_thrown):
+    # Testing redis exceptions, with retry settings specified
+    worker = worker_retry(functions=[func(foobar)])
+
+    # patch db read_response to mimic connection exceptions
+    p = patch.object(worker.pool.connection_pool.connection_class, 'read_response', side_effect=exception_thrown)
+
+    # baseline
+    await worker.main()
+    await worker._poll_iteration()
+
+    # spy method handling call_with_retry failure
+    spy = mocker.spy(worker.pool, '_disconnect_raise')
+
+    try:
+        # start patch
+        p.start()
+
+        # assert exception thrown
+        with pytest.raises(type(exception_thrown)):
+            await worker._poll_iteration()
+
+        # assert retry counts and no exception thrown during '_disconnect_raise'
+        assert spy.call_count == 4  # retries setting + 1
+        assert spy.spy_exception is None
+
+    finally:
+        # stop patch to allow worker cleanup
+        p.stop()
+
+
+@pytest.mark.parametrize(
+    'exception_thrown',
+    [
+        redis.exceptions.ConnectionError('Error while reading from host'),
+        redis.exceptions.TimeoutError('Timeout reading from host'),
+    ],
+)
+async def test_worker_crash(mocker, worker, exception_thrown):
+    # Testing redis exceptions, no retry settings specified
+    worker = worker(functions=[func(foobar)])
+
+    # patch db read_response to mimic connection exceptions
+    p = patch.object(worker.pool.connection_pool.connection_class, 'read_response', side_effect=exception_thrown)
+
+    # baseline
+    await worker.main()
+    await worker._poll_iteration()
+
+    # spy method handling call_with_retry failure
+    spy = mocker.spy(worker.pool, '_disconnect_raise')
+
+    try:
+        # start patch
+        p.start()
+
+        # assert exception thrown
+        with pytest.raises(type(exception_thrown)):
+            await worker._poll_iteration()
+
+        # assert no retry counts and exception thrown during '_disconnect_raise'
+        assert spy.call_count == 1
+        assert spy.spy_exception == exception_thrown
+
+    finally:
+        # stop patch to allow worker cleanup
+        p.stop()
