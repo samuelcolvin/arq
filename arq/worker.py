@@ -486,9 +486,10 @@ class Worker:
         args: Tuple[Any, ...] = ()
         kwargs: Dict[Any, Any] = {}
 
-        async def job_failed(exc: BaseException) -> None:
+        async def job_failed(exc: BaseException, ref: Optional[str] = None) -> None:
+            ref = ref or f'{job_id}:{function_name}'
             self.jobs_failed += 1
-            result_data_ = serialize_result(
+            job_result_, result_data_ = _create_result(
                 function=function_name,
                 args=args,
                 kwargs=kwargs,
@@ -498,11 +499,12 @@ class Worker:
                 result=exc,
                 start_ms=start_ms,
                 finished_ms=timestamp_ms(),
-                ref=f'{job_id}:{function_name}',
+                ref=ref,
                 serializer=self.job_serializer,
                 queue_name=self.queue_name,
             )
             await asyncio.shield(self.finish_failed_job(job_id, result_data_))
+            await asyncio.shield(self._after_job_end({}, job_result_))
 
         if not v:
             logger.warning('job %s expired', job_id)
@@ -543,22 +545,7 @@ class Worker:
         if job_try > max_tries:
             t = (timestamp_ms() - enqueue_time_ms) / 1000
             logger.warning('%6.2fs ! %s max retries %d exceeded', t, ref, max_tries)
-            self.jobs_failed += 1
-            result_data = serialize_result(
-                function_name,
-                args,
-                kwargs,
-                job_try,
-                enqueue_time_ms,
-                False,
-                JobExecutionFailed(f'max {max_tries} retries exceeded'),
-                start_ms,
-                timestamp_ms(),
-                ref,
-                self.queue_name,
-                serializer=self.job_serializer,
-            )
-            return await asyncio.shield(self.finish_failed_job(job_id, result_data))
+            return await job_failed(JobExecutionFailed(f'max {max_tries} retries exceeded'), ref=ref)
 
         result = no_result
         exc_extra = None
@@ -636,8 +623,9 @@ class Worker:
         )
         result_timeout_s = self.keep_result_s if function.keep_result_s is None else function.keep_result_s
         result_data = None
+        job_result = None
         if result is not no_result and (keep_result_forever or result_timeout_s > 0):
-            result_data = serialize_result(
+            job_result, result_data = _create_result(
                 function_name,
                 args,
                 kwargs,
@@ -666,9 +654,7 @@ class Worker:
                 keep_in_progress,
             )
         )
-
-        if self.after_job_end:
-            await self.after_job_end(ctx)
+        await asyncio.shield(self._after_job_end(ctx, job_result))
 
     async def finish_job(
         self,
@@ -700,6 +686,12 @@ class Worker:
             if delete_keys:
                 tr.delete(*delete_keys)  # type: ignore[unused-coroutine]
             await tr.execute()
+
+    async def _after_job_end(self, ctx: Dict[Any, Any], job_result: Optional[JobResult]) -> None:
+        if self.after_job_end:
+            if job_result:
+                ctx['job_result'] = job_result
+            await self.after_job_end(ctx)
 
     async def finish_failed_job(self, job_id: str, result_data: Optional[bytes]) -> None:
         async with self.pool.pipeline(transaction=True) as tr:
@@ -884,6 +876,50 @@ def run_worker(settings_cls: 'WorkerSettingsType', **kwargs: Any) -> Worker:
     worker = create_worker(settings_cls, **kwargs)
     worker.run()
     return worker
+
+
+def _create_result(
+    function: str,
+    args: Tuple[Any, ...],
+    kwargs: Dict[str, Any],
+    job_try: int,
+    enqueue_time_ms: int,
+    success: bool,
+    result: Any,
+    start_ms: int,
+    finished_ms: int,
+    ref: str,
+    queue_name: str,
+    *,
+    serializer: Optional[Serializer] = None,
+) -> Tuple[JobResult, Optional[bytes]]:
+    job_result = JobResult(
+        job_try=job_try,
+        function=function,
+        args=args,
+        kwargs=kwargs,
+        enqueue_time=ms_to_datetime(start_ms),
+        score=None,
+        success=success,
+        result=result,
+        start_time=ms_to_datetime(start_ms),
+        finish_time=ms_to_datetime(finished_ms),
+        queue_name=queue_name,
+    )
+    return job_result, serialize_result(
+        function,
+        args,
+        kwargs,
+        job_try,
+        enqueue_time_ms,
+        success,
+        result,
+        start_ms,
+        finished_ms,
+        ref,
+        queue_name,
+        serializer=serializer,
+    )
 
 
 async def async_check_health(

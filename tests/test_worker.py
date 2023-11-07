@@ -959,6 +959,7 @@ async def test_on_job(arq_redis: ArqRedis, worker):
 
     async def after_end(ctx):
         assert ctx['job_id'] == 'testing'
+        assert ctx['job_result'].success
         result['called'] += 2
 
     async def test(ctx):
