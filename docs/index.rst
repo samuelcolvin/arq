@@ -176,8 +176,12 @@ in the queue.
 
 .. literalinclude:: examples/job_abort.py
 
-Health checks
-.............
+Health checks and monitoring
+............................
+
+Monitoring and observability tasks remain within the developer's realm of responsibility. However, there are third-party
+projects offering monitoring capabilities, such as `arq-ui <https://github.com/antonko/arq-ui>`_. It provides a solution for visualizing and
+tracking task execution within arq, albeit with certain limitations.
 
 *arq* will automatically record some info about its current state in redis every ``health_check_interval`` seconds.
 That key/value will expire after ``health_check_interval + 1`` seconds so you can be sure if the variable exists *arq*
