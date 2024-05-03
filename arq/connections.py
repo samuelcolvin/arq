@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Type, Union, cast
 from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
@@ -50,7 +50,7 @@ class RedisSettings:
     sentinel_master: str = 'mymaster'
 
     retry_on_timeout: bool = False
-    retry_on_error: Optional[List[Exception]] = None
+    retry_on_error: Optional[List[Type[Exception]]] = None
     retry: Optional[Retry] = None
 
     @classmethod
