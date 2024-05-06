@@ -10,7 +10,7 @@ click==8.1.7
     # via arq (pyproject.toml)
 hiredis==2.3.2
     # via redis
-idna==3.6
+idna==3.7
     # via anyio
 redis==4.6.0
     # via arq (pyproject.toml)
