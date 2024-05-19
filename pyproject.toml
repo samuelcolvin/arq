@@ -38,7 +38,7 @@ classifiers = [
 ]
 requires-python = '>=3.8'
 dependencies = [
-    'redis[hiredis]>=4.2.0,<5',
+    'redis[hiredis]>=4.2.0,<6',
     'click>=8.0',
 ]
 optional-dependencies = {watch = ['watchfiles>=0.16'] }
