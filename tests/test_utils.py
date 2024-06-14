@@ -256,3 +256,17 @@ def test_settings_from_socket_dsn():
         'retry': None,
         'max_connections': None,
     }
+
+
+def test_lazy_str():
+    called = False
+
+    def get_str() -> str:
+        nonlocal called
+        called = True
+        return 'get_str'
+
+    lazy_str = arq.utils.LazyStr(get_str)
+    assert not called
+    assert str(lazy_str) == 'get_str'
+    assert called

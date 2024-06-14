@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from time import time
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, Optional, Sequence, overload
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Callable, Dict, Optional, Sequence, overload
 
 from .constants import timezone_env_vars
 
@@ -17,6 +17,14 @@ logger = logging.getLogger('arq.utils')
 
 if TYPE_CHECKING:
     from .typing import SecondsTimedelta
+
+
+class LazyStr:
+    def __init__(self, fn: Callable[[], str]) -> None:
+        self.fn = fn
+
+    def __str__(self) -> str:
+        return self.fn()
 
 
 def as_int(f: float) -> int:

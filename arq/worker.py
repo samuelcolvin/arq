@@ -29,6 +29,7 @@ from .constants import (
     retry_key_prefix,
 )
 from .utils import (
+    LazyStr,
     args_to_string,
     import_string,
     ms_to_datetime,
@@ -580,7 +581,7 @@ class Worker:
         start_ms = timestamp_ms()
         success = False
         try:
-            s = args_to_string(args, kwargs)
+            s = LazyStr(partial(args_to_string, args, kwargs))
             extra = f' try={job_try}' if job_try > 1 else ''
             if (start_ms - score) > 1200:
                 extra += f' delayed={(start_ms - score) / 1000:0.2f}s'
@@ -596,7 +597,7 @@ class Worker:
                     exc_extra = exc_extra()
                 raise
             else:
-                result_str = '' if result is None or not self.log_results else truncate(repr(result))
+                result_str = LazyStr(lambda: '' if result is None or not self.log_results else truncate(repr(result)))
             finally:
                 del self.job_tasks[job_id]
 
